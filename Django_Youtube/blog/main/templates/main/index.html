@@ -1,0 +1,21 @@
+{% extends 'main/layout.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+    <div class="features">
+        <h1>{{ title }}</h1>
+        <p> Вы находитесь на сайте о слониках </p>
+        <p> Приятного просмотра</p>
+
+        <a href="{% url 'news_home' %}" class="btn btn-warning">На страницу новостей</a>
+
+
+<!--        {% for el in values %}-->
+<!--            <p>{{ el }}</p>-->
+<!--        {% endfor %}-->
+
+<!--        {{ obj.age }}-->
+
+    </div>
+{% endblock %}
