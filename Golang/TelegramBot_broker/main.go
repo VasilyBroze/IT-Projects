@@ -32,12 +32,6 @@ type yfResp struct {
 	} `json:"quoteSummary"`
 }
 
-/*type yfResp struct {
-	//Price  float64 `json:"quoteSummary.result[0].price.regularMarketPrice.raw"
-	Price float64 `json:"quoteSummary.result[0].price.regularMarketPrice.raw,string"`
-	//Result string `json:"quoteSummary.result"`
-}*/
-
 type wallet map[string]float64
 
 var db = map[int64]wallet{}
@@ -111,20 +105,16 @@ func main() {
 				price, _ := getPrice(key)
 				if price == 0 {
 					price, _ = getPrice2(key)
+					if price == 0 {
+						price, _ = getPrice3(key)
+					}
 				}
 				sum += value * price
-				msg += fmt.Sprintf("%s: %v [%.2f USD]\n", key, value, value*price)
-			}
-			msg += fmt.Sprintf("Общий балланс: %.2f USD\n", sum)
-			bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, msg))
-
-		case "SHOW2":
-			msg := ""
-			var sum float64
-			for key, value := range db[update.Message.Chat.ID] {
-				price, _ := getPrice2(key)
-				sum += value * price
-				msg += fmt.Sprintf("%s: %v [%.2f USD]\n", key, value, value*price)
+				if price != 0 {
+					msg += fmt.Sprintf("%s: %v [%.2f USD]\n", key, value, value*price)
+				} else {
+					msg += fmt.Sprintf("%s: %v [%.2f USD (Тикер не найден)]\n", key, value, value*price)
+				}
 			}
 			msg += fmt.Sprintf("Общий балланс: %.2f USD\n", sum)
 			bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, msg))
@@ -176,25 +166,48 @@ func getPrice2(symbol string) (price2 float64, err error) { //РУБЛЁВЫЕ �
 	var jsonRespUSD yfResp
 
 	body, err := ioutil.ReadAll(resp.Body)
-	/*generatedjson := (string(body))
-	fmt.Println(generatedjson)*/
+
 	if err := json.Unmarshal(body, &jsonResp); err != nil {
 		panic(err)
 	}
 
 	body2, err := ioutil.ReadAll(resp2.Body)
-	/*generatedjson := (string(body2))
-	fmt.Println("НАЧАЛО ДЖЕСОНА")
-	fmt.Println(generatedjson)
-	fmt.Println("КОНЕЦ ДЖЕСОНА")*/
+
 	if err := json.Unmarshal(body2, &jsonRespUSD); err != nil {
 		panic(err)
 	}
 
-	price2 = (jsonResp.QuoteSummary.Result[0].Price.RegularMarketPrice.Raw) / (jsonRespUSD.QuoteSummary.Result[0].Price.RegularMarketPrice.Raw)
-	if jsonResp.QuoteSummary.Error != "null" {
-		err = errors.New("Неверный тикер")
+	if jsonResp.QuoteSummary.Error != nil {
+		return
 	}
+
+	price2 = (jsonResp.QuoteSummary.Result[0].Price.RegularMarketPrice.Raw) / (jsonRespUSD.QuoteSummary.Result[0].Price.RegularMarketPrice.Raw)
+
+	return
+}
+
+func getPrice3(symbol string) (price3 float64, err error) { //АМЕРИКАНСКИЕ АКЦИИ
+	resp, _ := http.Get(fmt.Sprintf("https://query1.finance.yahoo.com/v10/finance/quoteSummary/%s?modules=price", symbol))
+
+	if err != nil {
+		return
+	}
+
+	defer resp.Body.Close()
+
+	var jsonResp yfResp
+
+	body, err := ioutil.ReadAll(resp.Body)
+
+	if err := json.Unmarshal(body, &jsonResp); err != nil {
+		panic(err)
+	}
+
+	if jsonResp.QuoteSummary.Error != nil {
+		return
+	}
+
+	price3 = (jsonResp.QuoteSummary.Result[0].Price.RegularMarketPrice.Raw)
 
 	return
 }
