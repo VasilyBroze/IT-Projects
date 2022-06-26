@@ -58,13 +58,14 @@ func main() {
 		command := strings.Split(update.Message.Text, " ")
 
 		switch command[0] {
+
 		case "ADD":
 			if len(command) != 3 {
 				bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "Неверная команда"))
 			} else {
 				amount, err := strconv.ParseFloat(command[2], 64)
 				if err != nil {
-					bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, err.Error()))
+					bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "Неверное количество"))
 				}
 				if _, ok := db[update.Message.Chat.ID]; !ok {
 					db[update.Message.Chat.ID] = wallet{}
@@ -73,23 +74,24 @@ func main() {
 				balanceText := fmt.Sprintf("Баланс %v: %v", command[1], db[update.Message.Chat.ID][command[1]])
 				bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, balanceText))
 			}
+
 		case "SUB":
 			if len(command) != 3 {
 				bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "Неверная команда"))
 			} else {
 				amount, err := strconv.ParseFloat(command[2], 64)
 				if err != nil {
-					bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, err.Error()))
+					bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "Неверное количество"))
 				}
 				if _, ok := db[update.Message.Chat.ID]; !ok {
 					bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "Ошибка. Заданый тикер отсутствует."))
-					//db[update.Message.Chat.ID] = wallet{}
 				} else {
 					db[update.Message.Chat.ID][command[1]] -= amount
 					balanceText := fmt.Sprintf("Баланс %v: %v", command[1], db[update.Message.Chat.ID][command[1]])
 					bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, balanceText))
 				}
 			}
+
 		case "DEL":
 			if len(command) != 2 {
 				bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "Неверная команда"))
@@ -97,7 +99,9 @@ func main() {
 
 				delete(db[update.Message.Chat.ID], command[1])
 				bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "Тикер удалён"))
+
 			}
+
 		case "SHOW":
 			msg := ""
 			var sum float64
@@ -119,8 +123,30 @@ func main() {
 			msg += fmt.Sprintf("Общий балланс: %.2f USD\n", sum)
 			bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, msg))
 
+		case "SHOWRUB":
+			msg := ""
+			var sum float64
+			usd, _ := getPriceUSD()
+			for key, value := range db[update.Message.Chat.ID] {
+				price, _ := getPrice(key)
+				if price == 0 {
+					price, _ = getPrice2(key)
+					if price == 0 {
+						price, _ = getPrice3(key)
+					}
+				}
+				sum += value * price * usd
+				if price != 0 {
+					msg += fmt.Sprintf("%s: %v [%.2f RUB]\n", key, value, value*price*usd)
+				} else {
+					msg += fmt.Sprintf("%s: %v [%.2f RUB (Тикер не найден)]\n", key, value, value*price)
+				}
+			}
+			msg += fmt.Sprintf("Общий балланс: %.2f RUB\n", sum)
+			bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, msg))
+
 		case "/description":
-			msg := fmt.Sprintf("Описание комманд:\nADD (тикер) (количество) - добавить\nSUB (тикер) (количество) - отнять\nDEL (тикер) - удалить\nSHOW - баланс")
+			msg := fmt.Sprintf("Описание комманд:\nADD (тикер) (количество) - добавить\nSUB (тикер) (количество) - отнять\nDEL (тикер) - удалить\nSHOW - баланс (USD)\nSHOWRUB - баланс (RUB)")
 			bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, msg))
 		default:
 			bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "Команда не найдена"))
@@ -208,6 +234,29 @@ func getPrice3(symbol string) (price3 float64, err error) { //АМЕРИКАНС
 	}
 
 	price3 = (jsonResp.QuoteSummary.Result[0].Price.RegularMarketPrice.Raw)
+
+	return
+}
+
+func getPriceUSD() (price4 float64, err error) {
+
+	resp2, _ := http.Get(fmt.Sprintf("https://query1.finance.yahoo.com/v10/finance/quoteSummary/RUB=X?modules=price"))
+
+	defer resp2.Body.Close()
+
+	var jsonRespUSD yfResp
+
+	body2, err := ioutil.ReadAll(resp2.Body)
+
+	if err := json.Unmarshal(body2, &jsonRespUSD); err != nil {
+		panic(err)
+	}
+
+	if jsonRespUSD.QuoteSummary.Error != nil {
+		return
+	}
+
+	price4 = (jsonRespUSD.QuoteSummary.Result[0].Price.RegularMarketPrice.Raw)
 
 	return
 }
