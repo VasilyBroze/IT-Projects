@@ -13,12 +13,12 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
-type bnResp struct {
+type bnResp struct { //BINANCE
 	Price float64 `json:"price,string"`
 	Code  int64   `json:"code"`
 }
 
-type yfResp struct {
+type yfResp struct { //YAHOO
 	QuoteSummary struct {
 		Result []struct {
 			Price struct {
