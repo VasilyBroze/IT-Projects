@@ -13,12 +13,12 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
-type bnResp struct {
+type bnResp struct { //BINANCE
 	Price float64 `json:"price,string"`
 	Code  int64   `json:"code"`
 }
 
-type yfResp struct {
+type yfResp struct { //YAHOO FINANCE
 	QuoteSummary struct {
 		Result []struct {
 			Price struct {
@@ -60,7 +60,7 @@ func main() {
 
 		switch command[0] {
 
-		case "ADD":
+		case "ADD": //ДОБАВИТЬ ТИКЕР
 			if len(command) != 3 {
 				bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "Неверная команда"))
 			} else {
@@ -76,7 +76,7 @@ func main() {
 				bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, balanceText))
 			}
 
-		case "SUB":
+		case "SUB": //ОТНЯТЬ ТИКЕР
 			if len(command) != 3 {
 				bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "Неверная команда"))
 			} else {
