@@ -183,7 +183,7 @@ func main() {
 			bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, msg))
 			rows.Close()
 
-		case "SHOWRUB":
+		case "SHOWRUB", "/SHOWRUB":
 			msg := ""
 			var sum float64
 			usd, _ := getPriceUSD()
@@ -217,7 +217,7 @@ func main() {
 			msg := fmt.Sprintf("Описание комманд:\nADD (тикер) (количество) - добавить\nSUB (тикер) (количество) - отнять\nDEL (тикер) - удалить\nSHOW - баланс (USD)\nSHOWRUB - баланс (RUB)")
 			bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, msg))
 
-		case "USD":
+		case "USD", "/USD":
 			usd, _ := getPriceUSD()
 			msg := fmt.Sprintf("Курс доллара: %.2f", usd)
 			bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, msg))
@@ -257,7 +257,7 @@ func getPrice2(symbol string) (price2 float64, err error) { //РУБЛЁВЫЕ �
 		return
 	}
 
-	resp2, _ := http.Get(fmt.Sprintf("https://query1.finance.yahoo.com/v10/finance/quoteSummary/RUB=X?modules=price"))
+	resp2, _ := http.Get(fmt.Sprintf("https://query1.finance.yahoo.com/v10/finance/quoteSummary/USDRUB.ME?modules=price"))
 
 	defer resp.Body.Close()
 	defer resp2.Body.Close()
@@ -314,7 +314,7 @@ func getPrice3(symbol string) (price3 float64, err error) { //АМЕРИКАНС
 
 func getPriceUSD() (price4 float64, err error) {
 
-	resp2, _ := http.Get(fmt.Sprintf("https://query1.finance.yahoo.com/v10/finance/quoteSummary/RUB=X?modules=price"))
+	resp2, _ := http.Get(fmt.Sprintf("https://query1.finance.yahoo.com/v10/finance/quoteSummary/USDRUB.ME?modules=price"))
 
 	defer resp2.Body.Close()
 
