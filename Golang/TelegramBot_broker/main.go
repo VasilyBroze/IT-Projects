@@ -46,9 +46,9 @@ func main() {
 		log.Panic(err)
 	}
 
-	bot.Debug = true
+	bot.Debug = false
 
-	log.Printf("Authorized on account %s", bot.Self.UserName)
+	//log.Printf("Authorized on account %s", bot.Self.UserName)
 
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
@@ -70,34 +70,35 @@ func main() {
 				amountInput, err := strconv.ParseFloat(command[2], 64)
 				if err != nil {
 					bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "Неверное количество"))
-				}
-
-				//СЧИТЫВАНИЕ ИЗ БАЗЫ
-				data1, _ := database.Query("SELECT chat_id, ticker, amount FROM people WHERE ticker = ? AND chat_id = ?", command[1], update.Message.Chat.ID)
-				var chatId int
-				var ticker string
-				var amount float64
-
-				data1.Next()
-				data1.Scan(&chatId, &ticker, &amount)
-				data1.Close()
-				if ticker == "" {
-					//ЕСЛИ СТРОКИ НЕТ - ДОБАВЛЕНИЕ СТРОКИ
-					statement, _ = database.Prepare("INSERT INTO people (chat_id, ticker, amount) VALUES (?, ?, ?)")
-					statement.Exec(update.Message.Chat.ID, command[1], command[2])
-					//ВЫВОД В ЧАТ
-					balanceText := fmt.Sprintf("Тикер добавлен. Баланс %v: %v", command[1], command[2])
-					bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, balanceText))
-
 				} else {
-					//ЕСЛИ СТРОКА ЕСТЬ - ОБНОВЛЯЕМ ЗНАЧЕНИЕ
-					_, err := database.Exec("UPDATE people SET amount=amount + ? WHERE chat_id = ? AND ticker = ?", amountInput, update.Message.Chat.ID, command[1])
-					if err != nil {
-						fmt.Println(err)
+
+					//СЧИТЫВАНИЕ ИЗ БАЗЫ
+					data1, _ := database.Query("SELECT chat_id, ticker, amount FROM people WHERE ticker = ? AND chat_id = ?", command[1], update.Message.Chat.ID)
+					var chatId int
+					var ticker string
+					var amount float64
+
+					data1.Next()
+					data1.Scan(&chatId, &ticker, &amount)
+					data1.Close()
+					if ticker == "" {
+						//ЕСЛИ СТРОКИ НЕТ - ДОБАВЛЕНИЕ СТРОКИ
+						statement, _ = database.Prepare("INSERT INTO people (chat_id, ticker, amount) VALUES (?, ?, ?)")
+						statement.Exec(update.Message.Chat.ID, command[1], command[2])
+						//ВЫВОД В ЧАТ
+						balanceText := fmt.Sprintf("Тикер добавлен. Баланс %v: %v", command[1], command[2])
+						bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, balanceText))
+
+					} else {
+						//ЕСЛИ СТРОКА ЕСТЬ - ОБНОВЛЯЕМ ЗНАЧЕНИЕ
+						_, err := database.Exec("UPDATE people SET amount=amount + ? WHERE chat_id = ? AND ticker = ?", amountInput, update.Message.Chat.ID, command[1])
+						if err != nil {
+							fmt.Println(err)
+						}
+						//ВЫВОД В ЧАТ
+						balanceText := fmt.Sprintf("Баланс %v: %v", command[1], amount+amountInput)
+						bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, balanceText))
 					}
-					//ВЫВОД В ЧАТ
-					balanceText := fmt.Sprintf("Баланс %v: %v", command[1], amount+amountInput)
-					bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, balanceText))
 				}
 			}
 
@@ -108,35 +109,36 @@ func main() {
 				amountInput, err := strconv.ParseFloat(command[2], 64)
 				if err != nil {
 					bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "Неверное количество"))
-				}
-
-				//СЧИТЫВАНИЕ ИЗ БАЗЫ
-				data1, _ := database.Query("SELECT chat_id,ticker, amount FROM people WHERE ticker = ? AND chat_id = ?", command[1], update.Message.Chat.ID)
-				var chatId int
-				var ticker string
-				var amount float64
-
-				data1.Next()
-				data1.Scan(&chatId, &ticker, &amount)
-				data1.Close()
-				if ticker == "" {
-					//ЕСЛИ СТРОКИ НЕТ - ДОБАВЛЕНИЕ СТРОКИ
-					statement, _ = database.Prepare("INSERT INTO people (chat_id, ticker, amount) VALUES (?, ?, ?)")
-					statement.Exec(update.Message.Chat.ID, command[1], command[2])
-					//ВЫВОД В ЧАТ
-					balanceText := fmt.Sprintf("Тикер добавлен. Баланс %v: %v", command[1], command[2])
-					bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, balanceText))
-
 				} else {
-					//ЕСЛИ СТРОКА ЕСТЬ - ОБНОВЛЯЕМ ЗНАЧЕНИЕ
-					result, err := database.Exec("UPDATE people SET amount=amount - ? WHERE chat_id = ? AND ticker = ?", amountInput, update.Message.Chat.ID, command[1])
-					if err != nil {
-						fmt.Println(err)
-						fmt.Println(result)
+
+					//СЧИТЫВАНИЕ ИЗ БАЗЫ
+					data1, _ := database.Query("SELECT chat_id,ticker, amount FROM people WHERE ticker = ? AND chat_id = ?", command[1], update.Message.Chat.ID)
+					var chatId int
+					var ticker string
+					var amount float64
+
+					data1.Next()
+					data1.Scan(&chatId, &ticker, &amount)
+					data1.Close()
+					if ticker == "" {
+						//ЕСЛИ СТРОКИ НЕТ - ДОБАВЛЕНИЕ СТРОКИ
+						statement, _ = database.Prepare("INSERT INTO people (chat_id, ticker, amount) VALUES (?, ?, ?)")
+						statement.Exec(update.Message.Chat.ID, command[1], command[2])
+						//ВЫВОД В ЧАТ
+						balanceText := fmt.Sprintf("Тикер добавлен. Баланс %v: %v", command[1], command[2])
+						bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, balanceText))
+
+					} else {
+						//ЕСЛИ СТРОКА ЕСТЬ - ОБНОВЛЯЕМ ЗНАЧЕНИЕ
+						result, err := database.Exec("UPDATE people SET amount=amount - ? WHERE chat_id = ? AND ticker = ?", amountInput, update.Message.Chat.ID, command[1])
+						if err != nil {
+							fmt.Println(err)
+							fmt.Println(result)
+						}
+						//ВЫВОД В ЧАТ
+						balanceText := fmt.Sprintf("Баланс %v: %v", command[1], amount-amountInput)
+						bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, balanceText))
 					}
-					//ВЫВОД В ЧАТ
-					balanceText := fmt.Sprintf("Баланс %v: %v", command[1], amount-amountInput)
-					bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, balanceText))
 				}
 			}
 
@@ -214,6 +216,12 @@ func main() {
 		case "/DESCRIPTION":
 			msg := fmt.Sprintf("Описание комманд:\nADD (тикер) (количество) - добавить\nSUB (тикер) (количество) - отнять\nDEL (тикер) - удалить\nSHOW - баланс (USD)\nSHOWRUB - баланс (RUB)")
 			bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, msg))
+
+		case "USD":
+			usd, _ := getPriceUSD()
+			msg := fmt.Sprintf("Курс доллара: %.2f", usd)
+			bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, msg))
+
 		default:
 			bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "Команда не найдена"))
 		}
