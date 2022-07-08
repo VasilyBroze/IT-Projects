@@ -1,47 +1,36 @@
 package main
 
 import (
-	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	_ "github.com/mattn/go-sqlite3"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
+	//"strings"
 )
 
-type bnResp struct { //BINANCE
-	Price float64 `json:"price,string"`
-	Code  int64   `json:"code"`
+//ИМЯ В РОДИТЕЛЬНОМ ПАДЕЖЕ
+type rSuffix struct {
+	Name string `json:"Р"`
 }
 
-type yfResp struct { //YAHOO FINANCE
-	QuoteSummary struct {
-		Result []struct {
-			Price struct {
-				RegularMarketPrice struct {
-					Raw float64 `json:"raw"`
-					Fmt string  `json:"fmt"`
-				} `json:"regularMarketPrice"`
-			} `json:"price"`
-		} `json:"result"`
-		Error interface{} `json:"error"`
-	} `json:"quoteSummary"`
+//СТРУКТУРА ПАРСИНГА ИЗ ГУГЛ ТАБЛИЦ
+type Employee struct {
+	Name        string `json:"ФИО"`
+	Date        string `json:"Дата рождения"`
+	Title       string `json:"Должность"`
+	Department  string `json:"Отдел"`
+	PhoneNumber string `json:"Телефон"`
 }
 
 func main() {
-	//СОЗДАНИЕ БД
-	database, _ := sql.Open("sqlite3", "./gopher.db")
 
-	statement, _ := database.Prepare("CREATE TABLE IF NOT EXISTS people (id INTEGER PRIMARY KEY, chat_id INTEGER,ticker TEXT, amount FLOAT)")
-	statement.Exec()
-	//БД СОЗДАНА
-
-	bot, err := tgbotapi.NewBotAPI("5405522760:AAFqA15HEI8tn--bRzzEd-TQiobMIv2AAEo")
+	//botToken := getBotToken()
+	bot, err := tgbotapi.NewBotAPI("5336741653:AAEFq8-y8i9O3f2mg0IqKXWWkQZ7i2Ivb64")
 	if err != nil {
 		log.Panic(err)
 	}
@@ -49,261 +38,120 @@ func main() {
 	bot.Debug = true
 
 	log.Printf("Authorized on account %s", bot.Self.UserName)
+	for {
+		//ПОЗДРАВЛЕНИЕ ТОЛЬКО В ПЕРИОД 10-12
+		currentTime := time.Now()
+		if currentTime.Hour() == 2 {
 
-	u := tgbotapi.NewUpdate(0)
-	u.Timeout = 60
+			birthdayToday := getBirthdayJson()
+			birthdayToday[0].Name = getPrettySuffix(birthdayToday[0].Name)
 
-	updates := bot.GetUpdatesChan(u)
+			if len(birthdayToday) > 0 {
+				for _, peoples := range birthdayToday {
+					msg := fmt.Sprintf("Сегодня день рождения у %v", peoples.Name)
+					bot.Send(tgbotapi.NewMessage(678187421, msg))
+					time.Sleep(11 * time.Second)
+				}
+			}
+			/*
+				msg := fmt.Sprintf("Сегодня день рождения у %v", int(currentTime.Month()))
+				bot.Send(tgbotapi.NewMessage(678187421, msg))
+				time.Sleep(11 * time.Second)
+				msg = fmt.Sprintf("Время2: %v", currentTime.Day())
+				bot.Send(tgbotapi.NewMessage(678187421, msg))
+				time.Sleep(10 * time.Second)
+			*/
 
-	for update := range updates {
-		if update.Message == nil { // If we got a message
-			continue
+		} else {
+			time.Sleep(1 * time.Hour)
 		}
-		command := strings.Split(strings.ToUpper(update.Message.Text), " ")
+		time.Sleep(1 * time.Hour)
+	}
+}
 
-		switch command[0] {
+//ПАРСИМ ЛЮДЕЙ У КОТОРЫХ СЕГОДНЯ ДЕНЬ РОЖДЕНИЯ
+func getBirthdayJson() []Employee {
+	resp, _ := http.Get(fmt.Sprintf("https://tools.aimylogic.com/api/googlesheet2json?sheet=Users&id=1mV5gdMfZ385RugZQAYLJQfljFFg17kWsb0DmZmG98dI"))
+	defer resp.Body.Close()
 
-		case "ADD": //ДОБАВИТЬ ТИКЕР
-			if len(command) != 3 {
-				bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "Неверная команда"))
-			} else {
-				amountInput, err := strconv.ParseFloat(command[2], 64)
-				if err != nil {
-					bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "Неверное количество"))
-				}
+	employes := []Employee{}
 
-				//СЧИТЫВАНИЕ ИЗ БАЗЫ
-				data1, _ := database.Query("SELECT chat_id, ticker, amount FROM people WHERE ticker = ? AND chat_id = ?", command[1], update.Message.Chat.ID)
-				var chatId int
-				var ticker string
-				var amount float64
+	body, err := ioutil.ReadAll(resp.Body) //ПОЛУЧИЛИ JSON
+	if err != nil {
+		fmt.Println(err)
+		return nil
+	}
+	if err := json.Unmarshal(body, &employes); err != nil {
+		fmt.Println(err)
+		return nil
+	}
 
-				data1.Next()
-				data1.Scan(&chatId, &ticker, &amount)
-				data1.Close()
-				if ticker == "" {
-					//ЕСЛИ СТРОКИ НЕТ - ДОБАВЛЕНИЕ СТРОКИ
-					statement, _ = database.Prepare("INSERT INTO people (chat_id, ticker, amount) VALUES (?, ?, ?)")
-					statement.Exec(update.Message.Chat.ID, command[1], command[2])
-					//ВЫВОД В ЧАТ
-					balanceText := fmt.Sprintf("Тикер добавлен. Баланс %v: %v", command[1], command[2])
-					bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, balanceText))
+	employesBirthday := []Employee{} //СТРУКТУРА ЛЮДЕЙ С ДНЁМ РОЖДЕНИЯ
+	currentTime := time.Now()
 
-				} else {
-					//ЕСЛИ СТРОКА ЕСТЬ - ОБНОВЛЯЕМ ЗНАЧЕНИЕ
-					_, err := database.Exec("UPDATE people SET amount=amount + ? WHERE chat_id = ? AND ticker = ?", amountInput, update.Message.Chat.ID, command[1])
-					if err != nil {
-						fmt.Println(err)
-					}
-					//ВЫВОД В ЧАТ
-					balanceText := fmt.Sprintf("Баланс %v: %v", command[1], amount+amountInput)
-					bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, balanceText))
-				}
+	var strMonth, strDay, strDate string
+
+	//УЖАСНАЯ КОНВЕРТАЦИЯ
+	if int(currentTime.Month()) < 10 {
+		strMonth = fmt.Sprintf("0%v", int(currentTime.Month()))
+	} else {
+		strMonth = strconv.Itoa(int(currentTime.Month()))
+	}
+
+	//УЖАСНАЯ КОНВЕРТАЦИЯ
+	if int(currentTime.Day()) < 10 {
+		strDay = fmt.Sprintf("0%v", currentTime.Day())
+	} else {
+		strDay = strconv.Itoa(currentTime.Day())
+	}
+
+	strDate = strDay + "." + strMonth //ПРИВОДИМ ДАТУ К ВИДУ ГУГЛДОК
+
+	//В ЦИКЛЕ ПО ВСЕМ ЛЮДЯМ ИЩЕМ ТЕХ У КОГО ДЕНЬ РОЖДЕНИЯ И ДОБАВЛЯЕМ ИХ В НОВУЮ СТРУКТУРУ
+	for _, empl := range employes {
+		if strings.HasPrefix(empl.Date, strDate) {
+			shortName := strings.Split(empl.Name, " ")
+			//ЕСЛИ ИМЯ БЕЗ ОСОБЕННОСТЕЙ - УБИРАЕМ ОТЧЕСТВО
+			if len(shortName) == 3 {
+				empl.Name = shortName[1] + " " + shortName[0]
 			}
-
-		case "SUB": //ОТНЯТЬ ТИКЕР
-			if len(command) != 3 {
-				bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "Неверная команда"))
-			} else {
-				amountInput, err := strconv.ParseFloat(command[2], 64)
-				if err != nil {
-					bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "Неверное количество"))
-				}
-
-				//СЧИТЫВАНИЕ ИЗ БАЗЫ
-				data1, _ := database.Query("SELECT chat_id,ticker, amount FROM people WHERE ticker = ? AND chat_id = ?", command[1], update.Message.Chat.ID)
-				var chatId int
-				var ticker string
-				var amount float64
-
-				data1.Next()
-				data1.Scan(&chatId, &ticker, &amount)
-				data1.Close()
-				if ticker == "" {
-					//ЕСЛИ СТРОКИ НЕТ - ДОБАВЛЕНИЕ СТРОКИ
-					statement, _ = database.Prepare("INSERT INTO people (chat_id, ticker, amount) VALUES (?, ?, ?)")
-					statement.Exec(update.Message.Chat.ID, command[1], command[2])
-					//ВЫВОД В ЧАТ
-					balanceText := fmt.Sprintf("Тикер добавлен. Баланс %v: %v", command[1], command[2])
-					bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, balanceText))
-
-				} else {
-					//ЕСЛИ СТРОКА ЕСТЬ - ОБНОВЛЯЕМ ЗНАЧЕНИЕ
-					result, err := database.Exec("UPDATE people SET amount=amount - ? WHERE chat_id = ? AND ticker = ?", amountInput, update.Message.Chat.ID, command[1])
-					if err != nil {
-						fmt.Println(err)
-						fmt.Println(result)
-					}
-					//ВЫВОД В ЧАТ
-					balanceText := fmt.Sprintf("Баланс %v: %v", command[1], amount-amountInput)
-					bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, balanceText))
-				}
-			}
-
-		case "DEL":
-			if len(command) != 2 {
-				bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "Неверная команда"))
-			} else {
-				//ЕСЛИ СТРОКА ЕСТЬ - УДАЛЯЕМ
-				_, err := database.Exec("DELETE FROM people WHERE chat_id = ? AND ticker = ?", update.Message.Chat.ID, command[1])
-				if err != nil {
-					fmt.Println("Ошибка удаления")
-				}
-				//ВЫВОД В ЧАТ
-				bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "Тикер удалён"))
-			}
-
-		case "SHOW":
-			msg := ""
-			var sum float64
-			rows, _ := database.Query("SELECT ticker, amount FROM people WHERE chat_id = ?", update.Message.Chat.ID)
-			var ticker string
-			var amount float64
-
-			//ПРОВЕРЯЕМ ВСЕ ДАННЫЕ В ТАБЛИЦЕ ПО ЧАТ ID
-			for rows.Next() {
-				rows.Scan(&ticker, &amount)
-				price, _ := getPrice(ticker) //BINANCE
-				if price == 0 {
-					price, _ = getPrice2(ticker) //YAHOO RUS
-					if price == 0 {
-						price, _ = getPrice3(ticker) //YAHOO
-					}
-				}
-				sum += amount * price
-				if price != 0 {
-					msg += fmt.Sprintf("%s: %v [%.2f USD] (Цена: %.2f)\n", ticker, amount, amount*price, price)
-				} else {
-					msg += fmt.Sprintf("%s: %v [%.2f USD (Тикер не найден)]\n", ticker, amount, amount*price)
-				}
-			}
-			msg += fmt.Sprintf("Общий балланс: %.2f USD\n", sum)
-			bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, msg))
-			rows.Close()
-
-		case "SHOWRUB":
-			msg := ""
-			var sum float64
-			usd, _ := getPriceUSD()
-			rows, _ := database.Query("SELECT ticker, amount FROM people WHERE chat_id = ?", update.Message.Chat.ID)
-			var ticker string
-			var amount float64
-
-			//ПРОВЕРЯЕМ ВСЕ ДАННЫЕ В ТАБЛИЦЕ ПО ЧАТ ID
-			for rows.Next() {
-				rows.Scan(&ticker, &amount)
-				price, _ := getPrice(ticker) //BINANCE
-				if price == 0 {
-					price, _ = getPrice2(ticker) //YAHOO RUS
-					if price == 0 {
-						price, _ = getPrice3(ticker) //YAHOO
-					}
-				}
-
-				sum += amount * price * usd
-				if price != 0 {
-					msg += fmt.Sprintf("%s: %v [%.2f RUB] (Цена: %.2f)\n", ticker, amount, amount*price*usd, price*usd)
-				} else {
-					msg += fmt.Sprintf("%s: %v [%.2f RUB (Тикер не найден)]\n", ticker, amount, amount*price)
-				}
-			}
-			msg += fmt.Sprintf("Общий балланс: %.2f RUB\n", sum)
-			//ВЫВОД В ЧАТ
-			bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, msg))
-
-		case "/DESCRIPTION":
-			msg := fmt.Sprintf("Описание комманд:\nADD (тикер) (количество) - добавить\nSUB (тикер) (количество) - отнять\nDEL (тикер) - удалить\nSHOW - баланс (USD)\nSHOWRUB - баланс (RUB)")
-			bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, msg))
-		default:
-			bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "Команда не найдена"))
+			employesBirthday = append(employesBirthday, empl)
 		}
 	}
+	return employesBirthday
 }
 
-func getPrice(symbol string) (price float64, err error) {
-	resp, err := http.Get(fmt.Sprintf("https://api.binance.com/api/v3/ticker/price?symbol=%sUSDT", symbol))
-	if err != nil {
-		return
-	}
+//ПОЛУЧИТЬ ИМЯ В РОДИТЕЛЬНОМ ПАДЕЖЕ
+func getPrettySuffix(people string) string {
 
+	people = strings.Replace(people, " ", "%20", -1)
+	resp, err := http.Get(fmt.Sprint("http://ws3.morpher.ru/russian/declension?s=" + people + "&format=json"))
+	if err != nil {
+		panic(err)
+	}
 	defer resp.Body.Close()
 
-	var jsonResp bnResp
+	rodSuffix := rSuffix{}
 
-	err = json.NewDecoder(resp.Body).Decode(&jsonResp)
+	body, err := ioutil.ReadAll(resp.Body) //ПОЛУЧИЛИ JSON
 	if err != nil {
-		return
-	}
-	if jsonResp.Code != 0 {
-		err = errors.New("Неверный символ")
-	}
-
-	price = jsonResp.Price
-	return
-}
-
-func getPrice2(symbol string) (price2 float64, err error) { //РУБЛЁВЫЕ АКЦИИ
-	resp, _ := http.Get(fmt.Sprintf("https://query1.finance.yahoo.com/v10/finance/quoteSummary/%s.ME?modules=price", symbol))
-
-	if err != nil {
-		return
-	}
-
-	resp2, _ := http.Get(fmt.Sprintf("https://query1.finance.yahoo.com/v10/finance/quoteSummary/RUB=X?modules=price"))
-
-	defer resp.Body.Close()
-	defer resp2.Body.Close()
-
-	var jsonResp yfResp
-	var jsonRespUSD yfResp
-
-	body, err := ioutil.ReadAll(resp.Body)
-
-	if err := json.Unmarshal(body, &jsonResp); err != nil {
 		panic(err)
 	}
 
-	body2, err := ioutil.ReadAll(resp2.Body)
-
-	if err := json.Unmarshal(body2, &jsonRespUSD); err != nil {
-		panic(err)
+	if err := json.Unmarshal(body, &rodSuffix); err != nil {
+		fmt.Println(err)
 	}
 
-	if jsonResp.QuoteSummary.Error != nil {
-		return
-	}
+	people = rodSuffix.Name
 
-	price2 = (jsonResp.QuoteSummary.Result[0].Price.RegularMarketPrice.Raw) / (jsonRespUSD.QuoteSummary.Result[0].Price.RegularMarketPrice.Raw)
-
-	return
+	return people
 }
 
-func getPrice3(symbol string) (price3 float64, err error) { //АМЕРИКАНСКИЕ АКЦИИ
-	resp, _ := http.Get(fmt.Sprintf("https://query1.finance.yahoo.com/v10/finance/quoteSummary/%s?modules=price", symbol))
+/*
 
-	if err != nil {
-		return
-	}
-
-	defer resp.Body.Close()
-
-	var jsonResp yfResp
-
-	body, err := ioutil.ReadAll(resp.Body)
-
-	if err := json.Unmarshal(body, &jsonResp); err != nil {
-		panic(err)
-	}
-
-	if jsonResp.QuoteSummary.Error != nil {
-		return
-	}
-
-	price3 = (jsonResp.QuoteSummary.Result[0].Price.RegularMarketPrice.Raw)
-
-	return
 }
 
+/*
 func getPriceUSD() (price4 float64, err error) {
 
 	resp2, _ := http.Get(fmt.Sprintf("https://query1.finance.yahoo.com/v10/finance/quoteSummary/RUB=X?modules=price"))
@@ -326,3 +174,4 @@ func getPriceUSD() (price4 float64, err error) {
 
 	return
 }
+*/
