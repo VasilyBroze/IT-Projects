@@ -6,16 +6,33 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"io/ioutil"
 	"log"
+	"math/rand"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
-	//"strings"
 )
 
 //ИМЯ В РОДИТЕЛЬНОМ ПАДЕЖЕ
 type rSuffix struct {
-	Name string `json:"Р"`
+	NameV string `json:"В"`
+	NameD string `json:"Д"`
+	NameR string `json:"Р"`
+}
+
+//СТРУКТУРА ПАРСИНГА ИЗ ПОЖЕЛАНИЙ
+type TextFirstPart struct {
+	Congratulation string `json:"Поздравляю"`
+}
+
+//СТРУКТУРА ПАРСИНГА ИЗ ПОЖЕЛАНИЙ
+type TextSecondPart struct {
+	WishYou string `json:"Желаю"`
+}
+
+//СТРУКТУРА ПАРСИНГА ИЗ ПОЖЕЛАНИЙ
+type TextThirdPart struct {
+	Sentiments string `json:"Пожелание"`
 }
 
 //СТРУКТУРА ПАРСИНГА ИЗ ГУГЛ ТАБЛИЦ
@@ -25,6 +42,7 @@ type Employee struct {
 	Title       string `json:"Должность"`
 	Department  string `json:"Отдел"`
 	PhoneNumber string `json:"Телефон"`
+	Male        string
 }
 
 func main() {
@@ -41,27 +59,48 @@ func main() {
 	for {
 		//ПОЗДРАВЛЕНИЕ ТОЛЬКО В ПЕРИОД 10-12
 		currentTime := time.Now()
-		if currentTime.Hour() == 2 {
+		if currentTime.Hour() == 4 {
 
 			birthdayToday := getBirthdayJson()
-			birthdayToday[0].Name = getPrettySuffix(birthdayToday[0].Name)
+
+			//birthdayToday[0].Name = getPrettySuffix(birthdayToday[0].Name) //РОДИТЕЛЬНЫЙ ПАДЕЖ (ДОПИСАТЬ УСЛОВИЕ)
 
 			if len(birthdayToday) > 0 {
 				for _, peoples := range birthdayToday {
-					msg := fmt.Sprintf("Сегодня день рождения у %v", peoples.Name)
+					fTP, sTP, tTP := getCongratArrays()
+
+					//ВЫНЕСТИ В ОТДЕЛЬНУЮ ФУНКЦИЮ СОСТАВЛЕНИЕ ТЕКСТА
+					var text1, text2, text3, text4, text5 string
+
+					text1 = fTP[random(len(fTP))].Congratulation
+					if strings.HasSuffix(text1, " *В") {
+						text1 = strings.Replace(text1, " *В", "", 1)
+						peoples.Name = getPrettySuffix(peoples.Name, "V")
+					}
+					if strings.HasSuffix(text1, " *Д") {
+						text1 = strings.Replace(text1, " *Д", "", 1)
+						peoples.Name = getPrettySuffix(peoples.Name, "D")
+					}
+					if strings.HasSuffix(text1, " *Р") {
+						text1 = strings.Replace(text1, " *Р", "", 1)
+						peoples.Name = getPrettySuffix(peoples.Name, "R")
+					}
+					text2 = sTP[random(len(sTP))].WishYou
+					text3 = tTP[random(len(tTP))].Sentiments
+					for text4 == "" || text4 == text3 {
+						text4 = tTP[random(len(tTP))].Sentiments
+					}
+					for text5 == "" || text5 == text4 || text5 == text3 {
+						text5 = tTP[random(len(tTP))].Sentiments
+					}
+
+					msg := fmt.Sprintf("%v %v из отдела %v. %v %v, %v и %v!", text1, peoples.Name, peoples.Department, text2, text3, text4, text5)
+
+					//msg := fmt.Sprintf("%v %v из отдела %v. %v %v", fTP[random(len(fTP))], peoples.Name, peoples.Department, sTP[random(len(sTP))], tTP[random(len(tTP))])
 					bot.Send(tgbotapi.NewMessage(678187421, msg))
-					time.Sleep(11 * time.Second)
+					time.Sleep(10 * time.Second)
 				}
 			}
-			/*
-				msg := fmt.Sprintf("Сегодня день рождения у %v", int(currentTime.Month()))
-				bot.Send(tgbotapi.NewMessage(678187421, msg))
-				time.Sleep(11 * time.Second)
-				msg = fmt.Sprintf("Время2: %v", currentTime.Day())
-				bot.Send(tgbotapi.NewMessage(678187421, msg))
-				time.Sleep(10 * time.Second)
-			*/
-
 		} else {
 			time.Sleep(1 * time.Hour)
 		}
@@ -69,7 +108,7 @@ func main() {
 	}
 }
 
-//ПАРСИМ ЛЮДЕЙ У КОТОРЫХ СЕГОДНЯ ДЕНЬ РОЖДЕНИЯ
+//ПАРСИМ ЛЮДЕЙ У КОТОРЫХ СЕГОДНЯ ДЕНЬ РОЖДЕНИЯ, ОПРЕДЕЛЯЕМ ПОЛ
 func getBirthdayJson() []Employee {
 	resp, _ := http.Get(fmt.Sprintf("https://tools.aimylogic.com/api/googlesheet2json?sheet=Users&id=1mV5gdMfZ385RugZQAYLJQfljFFg17kWsb0DmZmG98dI"))
 	defer resp.Body.Close()
@@ -91,14 +130,14 @@ func getBirthdayJson() []Employee {
 
 	var strMonth, strDay, strDate string
 
-	//УЖАСНАЯ КОНВЕРТАЦИЯ
+	//УЖАСНАЯ КОНВЕРТАЦИЯ МЕСЯЦА
 	if int(currentTime.Month()) < 10 {
 		strMonth = fmt.Sprintf("0%v", int(currentTime.Month()))
 	} else {
 		strMonth = strconv.Itoa(int(currentTime.Month()))
 	}
 
-	//УЖАСНАЯ КОНВЕРТАЦИЯ
+	//УЖАСНАЯ КОНВЕРТАЦИЯ ДНЯ
 	if int(currentTime.Day()) < 10 {
 		strDay = fmt.Sprintf("0%v", currentTime.Day())
 	} else {
@@ -111,19 +150,32 @@ func getBirthdayJson() []Employee {
 	for _, empl := range employes {
 		if strings.HasPrefix(empl.Date, strDate) {
 			shortName := strings.Split(empl.Name, " ")
-			//ЕСЛИ ИМЯ БЕЗ ОСОБЕННОСТЕЙ - УБИРАЕМ ОТЧЕСТВО
+			//ЕСЛИ ФИО ИЗ 3 СЛОВ - ОПРЕДЕЛЯЕМ ПОЛ ПО ОТЧЕСТВУ, УБИРАЕМ ОТЧЕСТВО
 			if len(shortName) == 3 {
+				switch {
+				case
+					strings.HasSuffix(shortName[2], "ч"):
+					empl.Male = "М"
+				case
+					strings.HasSuffix(shortName[2], "а"):
+					empl.Male = "Ж"
+				default:
+					empl.Male = "?"
+				}
 				empl.Name = shortName[1] + " " + shortName[0]
+			} else {
+				empl.Male = "?"
 			}
+
 			employesBirthday = append(employesBirthday, empl)
 		}
 	}
 	return employesBirthday
 }
 
-//ПОЛУЧИТЬ ИМЯ В РОДИТЕЛЬНОМ ПАДЕЖЕ
-func getPrettySuffix(people string) string {
-
+//ПОЛУЧИТЬ ИМЯ В ВИНИТЕЛЬНОМ ПАДЕЖЕ
+func getPrettySuffix(people, padej string) string {
+	name := people
 	people = strings.Replace(people, " ", "%20", -1)
 	resp, err := http.Get(fmt.Sprint("http://ws3.morpher.ru/russian/declension?s=" + people + "&format=json"))
 	if err != nil {
@@ -142,36 +194,73 @@ func getPrettySuffix(people string) string {
 		fmt.Println(err)
 	}
 
-	people = rodSuffix.Name
+	switch padej {
+	case "V":
+		name = rodSuffix.NameV
+	case "D":
+		name = rodSuffix.NameD
+	case "R":
+		name = rodSuffix.NameR
+	}
 
-	return people
+	return name
 }
 
-/*
-
+func random(max int) int {
+	rand.Seed(time.Now().UnixNano())
+	return rand.Intn(max)
 }
 
-/*
-func getPriceUSD() (price4 float64, err error) {
+//ПАРСИМ ТАБЛИЦУ С ТЕКСТОМ ПОЗДРАВЛЕНИЙ И РАСПРЕДЕЛЯЕМ ИХ ПО МАССИВАМ
+func getCongratArrays() ([]TextFirstPart, []TextSecondPart, []TextThirdPart) {
+	resp, _ := http.Get(fmt.Sprintf("https://tools.aimylogic.com/api/googlesheet2json?sheet=Text&id=1mV5gdMfZ385RugZQAYLJQfljFFg17kWsb0DmZmG98dI"))
+	defer resp.Body.Close()
 
-	resp2, _ := http.Get(fmt.Sprintf("https://query1.finance.yahoo.com/v10/finance/quoteSummary/RUB=X?modules=price"))
+	//МАССИВЫ ДЛЯ ПАРСИНГА
+	fTP := []TextFirstPart{}
+	sTP := []TextSecondPart{}
+	tTP := []TextThirdPart{}
 
-	defer resp2.Body.Close()
+	fTPraw := []TextFirstPart{}
+	sTPraw := []TextSecondPart{}
+	tTPraw := []TextThirdPart{}
 
-	var jsonRespUSD yfResp
-
-	body2, err := ioutil.ReadAll(resp2.Body)
-
-	if err := json.Unmarshal(body2, &jsonRespUSD); err != nil {
+	body, err := ioutil.ReadAll(resp.Body) //ПОЛУЧИЛИ JSON
+	if err != nil {
 		panic(err)
 	}
 
-	if jsonRespUSD.QuoteSummary.Error != nil {
-		return
+	if err := json.Unmarshal(body, &fTP); err != nil {
+		fmt.Println(err)
+		panic(err)
 	}
 
-	price4 = (jsonRespUSD.QuoteSummary.Result[0].Price.RegularMarketPrice.Raw)
+	if err := json.Unmarshal(body, &sTP); err != nil {
+		fmt.Println(err)
+	}
 
-	return
+	if err := json.Unmarshal(body, &tTP); err != nil {
+		fmt.Println(err)
+	}
+
+	//ФИЛЬТРУЕМ ПУСТЫЕ СТРОКИ
+	for _, first := range fTP {
+		if first.Congratulation != "" {
+			fTPraw = append(fTPraw, first)
+		}
+	}
+
+	for _, second := range sTP {
+		if second.WishYou != "" {
+			sTPraw = append(sTPraw, second)
+		}
+	}
+
+	for _, third := range tTP {
+		if third.Sentiments != "" {
+			tTPraw = append(tTPraw, third)
+		}
+	}
+
+	return fTPraw, sTPraw, tTPraw
 }
-*/
