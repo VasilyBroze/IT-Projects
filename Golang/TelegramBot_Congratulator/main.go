@@ -59,7 +59,7 @@ func main() {
 	for {
 		//ПОЗДРАВЛЕНИЕ ТОЛЬКО В ПЕРИОД 10-12
 		currentTime := time.Now()
-		if currentTime.Hour() == 4 {
+		if currentTime.Hour() == 14 {
 
 			birthdayToday := getBirthdayJson()
 
@@ -67,36 +67,8 @@ func main() {
 
 			if len(birthdayToday) > 0 {
 				for _, peoples := range birthdayToday {
-					fTP, sTP, tTP := getCongratArrays()
-
-					//ВЫНЕСТИ В ОТДЕЛЬНУЮ ФУНКЦИЮ СОСТАВЛЕНИЕ ТЕКСТА
-					var text1, text2, text3, text4, text5 string
-
-					text1 = fTP[random(len(fTP))].Congratulation
-					if strings.HasSuffix(text1, " *В") {
-						text1 = strings.Replace(text1, " *В", "", 1)
-						peoples.Name = getPrettySuffix(peoples.Name, "V")
-					}
-					if strings.HasSuffix(text1, " *Д") {
-						text1 = strings.Replace(text1, " *Д", "", 1)
-						peoples.Name = getPrettySuffix(peoples.Name, "D")
-					}
-					if strings.HasSuffix(text1, " *Р") {
-						text1 = strings.Replace(text1, " *Р", "", 1)
-						peoples.Name = getPrettySuffix(peoples.Name, "R")
-					}
-					text2 = sTP[random(len(sTP))].WishYou
-					text3 = tTP[random(len(tTP))].Sentiments
-					for text4 == "" || text4 == text3 {
-						text4 = tTP[random(len(tTP))].Sentiments
-					}
-					for text5 == "" || text5 == text4 || text5 == text3 {
-						text5 = tTP[random(len(tTP))].Sentiments
-					}
-
-					msg := fmt.Sprintf("%v %v из отдела %v. %v %v, %v и %v!", text1, peoples.Name, peoples.Department, text2, text3, text4, text5)
-
-					//msg := fmt.Sprintf("%v %v из отдела %v. %v %v", fTP[random(len(fTP))], peoples.Name, peoples.Department, sTP[random(len(sTP))], tTP[random(len(tTP))])
+					fmt.Println(peoples)
+					msg := getBirthdayMsg(peoples)
 					bot.Send(tgbotapi.NewMessage(678187421, msg))
 					time.Sleep(10 * time.Second)
 				}
@@ -104,7 +76,7 @@ func main() {
 		} else {
 			time.Sleep(1 * time.Hour)
 		}
-		time.Sleep(1 * time.Hour)
+		//time.Sleep(1 * time.Hour)
 	}
 }
 
@@ -173,7 +145,7 @@ func getBirthdayJson() []Employee {
 	return employesBirthday
 }
 
-//ПОЛУЧИТЬ ИМЯ В ВИНИТЕЛЬНОМ ПАДЕЖЕ
+//ПОЛУЧИТЬ ИМЯ В НУЖНОМ ПАДЕЖЕ
 func getPrettySuffix(people, padej string) string {
 	name := people
 	people = strings.Replace(people, " ", "%20", -1)
@@ -263,4 +235,64 @@ func getCongratArrays() ([]TextFirstPart, []TextSecondPart, []TextThirdPart) {
 	}
 
 	return fTPraw, sTPraw, tTPraw
+}
+
+//ГЕНЕРИРУЕМ СООБЩЕНИЕ ПО ГУГЛ ТАБЛИЦЕ С ЗАГОТОВКАМИ
+func getBirthdayMsg(peoples Employee) string {
+	fTP, sTP, tTP := getCongratArrays()
+
+	//ВЫНЕСТИ В ОТДЕЛЬНУЮ ФУНКЦИЮ СОСТАВЛЕНИЕ ТЕКСТА
+	var text1, text2, text3, text4, text5 string
+
+	//ГЕНЕРИРУЕМ СЛУЧАЙНОЕ ЧИСЛО, И ПО НЕМУ ПОДСТАВЛЯЕМ ЧАСТЬ ТЕКСТА
+	text1 = fTP[random(len(fTP))].Congratulation
+
+	//ПРИ ПЕРВОЙ В КОТОРОЙ УКАЗАН ПОЛ, ПРОВЕРЯЕМ ПОЛ СОТРУДНИКА
+	for strings.HasSuffix(text1, " *Ж") && peoples.Male == "М" {
+		text1 = fTP[random(len(fTP))].Congratulation
+		time.Sleep(77 * time.Microsecond)
+		fmt.Println("Я В ЦИКЛЕ ПИПЛ МАЛЕ Ж - М")
+	}
+	for strings.HasSuffix(text1, " *М") && peoples.Male == "Ж" {
+		text1 = fTP[random(len(fTP))].Congratulation
+		time.Sleep(77 * time.Microsecond)
+		fmt.Println("Я В ЦИКЛЕ ПИПЛ МАЛЕ М - Ж")
+	}
+	//ЕСЛИ ПОЛ ОПРЕДЕЛИТЬ НЕ УДАЛОСЬ - НЕ ИСПОЛЬЗУЕМ НАЧАЛЬНЫЕ ФРАЗЫ В КОТОРЫХ ОН УКАЗАН
+	for peoples.Male == "?" && (strings.HasSuffix(text1, " *М") || strings.HasSuffix(text1, " *Ж")) {
+		text1 = fTP[random(len(fTP))].Congratulation
+		time.Sleep(77 * time.Microsecond)
+		fmt.Println("Я В ЦИКЛЕ ПИПЛ МАЛЕ ?")
+	}
+
+	//УДАЛЯЕМ УКАЗАТЕЛИ ПОЛА В НАЧАЛЬНОЙ ФРАЗЕ
+	if strings.HasSuffix(text1, " *Ж") {
+		text1 = strings.Replace(text1, " *Ж", "", 1)
+	}
+	if strings.HasSuffix(text1, " *М") {
+		text1 = strings.Replace(text1, " *М", "", 1)
+	}
+	//ПОЛУЧАЕМ ИМЯ В НУЖНОМ ПАДЕЖЕ В ЗАВИСИМОСТИ ОТ УКАЗАТЕЛЯ ГУГЛ ТАБЛИЦЫ
+	if strings.HasSuffix(text1, " *В") {
+		text1 = strings.Replace(text1, " *В", "", 1)
+		peoples.Name = getPrettySuffix(peoples.Name, "V")
+	}
+	if strings.HasSuffix(text1, " *Д") {
+		text1 = strings.Replace(text1, " *Д", "", 1)
+		peoples.Name = getPrettySuffix(peoples.Name, "D")
+	}
+	if strings.HasSuffix(text1, " *Р") {
+		text1 = strings.Replace(text1, " *Р", "", 1)
+		peoples.Name = getPrettySuffix(peoples.Name, "R")
+	}
+	text2 = sTP[random(len(sTP))].WishYou
+	text3 = tTP[random(len(tTP))].Sentiments
+	for text4 == "" || text4 == text3 {
+		text4 = tTP[random(len(tTP))].Sentiments
+	}
+	for text5 == "" || text5 == text4 || text5 == text3 {
+		text5 = tTP[random(len(tTP))].Sentiments
+	}
+	msg := fmt.Sprintf("%v %v из отдела %v. %v %v, %v и %v!", text1, peoples.Name, peoples.Department, text2, text3, text4, text5)
+	return msg
 }
