@@ -13,11 +13,12 @@ import (
 	"time"
 )
 
-//ИМЯ В РОДИТЕЛЬНОМ ПАДЕЖЕ
+//ИМЯ В НУЖНОМ ПАДЕЖЕ
 type rSuffix struct {
 	NameV string `json:"В"`
 	NameD string `json:"Д"`
 	NameR string `json:"Р"`
+	Code  int    `json:"code"`
 }
 
 //СТРУКТУРА ПАРСИНГА ИЗ ПОЖЕЛАНИЙ
@@ -37,12 +38,12 @@ type TextThirdPart struct {
 
 //СТРУКТУРА ПАРСИНГА ИЗ ГУГЛ ТАБЛИЦ
 type Employee struct {
-	Name        string `json:"ФИО"`
-	Date        string `json:"Дата рождения"`
-	Title       string `json:"Должность"`
-	Department  string `json:"Отдел"`
-	PhoneNumber string `json:"Телефон"`
-	Male        string
+	Name string `json:"ФИО"`
+	Date string `json:"Дата рождения"`
+	//	Title       string `json:"Должность"`
+	Department string `json:"Отдел"`
+	//	PhoneNumber string `json:"Телефон"`
+	Male string
 }
 
 func main() {
@@ -57,26 +58,24 @@ func main() {
 
 	log.Printf("Authorized on account %s", bot.Self.UserName)
 	for {
-		//ПОЗДРАВЛЕНИЕ ТОЛЬКО В ПЕРИОД 10-12
+		//ПОЗДРАВЛЕНИЕ ТОЛЬКО В ПЕРИОД 10-11
 		currentTime := time.Now()
-		if currentTime.Hour() == 14 {
+		if currentTime.Hour() == 13 {
 
 			birthdayToday := getBirthdayJson()
-
-			//birthdayToday[0].Name = getPrettySuffix(birthdayToday[0].Name) //РОДИТЕЛЬНЫЙ ПАДЕЖ (ДОПИСАТЬ УСЛОВИЕ)
 
 			if len(birthdayToday) > 0 {
 				for _, peoples := range birthdayToday {
 					fmt.Println(peoples)
 					msg := getBirthdayMsg(peoples)
-					bot.Send(tgbotapi.NewMessage(678187421, msg))
-					time.Sleep(10 * time.Second)
+					bot.Send(tgbotapi.NewMessage(-728590508, msg))
+					time.Sleep(10 * time.Minute)
 				}
 			}
 		} else {
 			time.Sleep(1 * time.Hour)
 		}
-		//time.Sleep(1 * time.Hour)
+		time.Sleep(1 * time.Hour)
 	}
 }
 
@@ -139,13 +138,28 @@ func getBirthdayJson() []Employee {
 				empl.Male = "?"
 			}
 
+			//ИЗМЕНЯЕМ НАЗВАНИЕ ОТДЕЛА НА БОЛЕЕ КОРОТКОЕ
+			switch {
+			case strings.Contains(empl.Department, "ПТО"):
+				empl.Department = "Отдел ПТО"
+			case strings.Contains(empl.Department, "(ПО)"):
+				empl.Department = "Отдел IT"
+			case strings.Contains(empl.Department, "ПНР"):
+				empl.Department = "Отдел ПНР"
+			case strings.Contains(empl.Department, "("): //СОКРАЩАЕМ НАЗВАНИЕ ОТДЕЛА ДО ПЕРВОЙ СКОБКИ
+				dep := strings.Split(empl.Department, "(")
+				if len(dep) > 0 {
+					empl.Department = dep[0]
+				}
+			}
+
 			employesBirthday = append(employesBirthday, empl)
 		}
 	}
 	return employesBirthday
 }
 
-//ПОЛУЧИТЬ ИМЯ В НУЖНОМ ПАДЕЖЕ
+//ПОЛУЧАЕМ ИМЯ В НУЖНОМ ПАДЕЖЕ
 func getPrettySuffix(people, padej string) string {
 	name := people
 	people = strings.Replace(people, " ", "%20", -1)
@@ -166,6 +180,13 @@ func getPrettySuffix(people, padej string) string {
 		fmt.Println(err)
 	}
 
+	//ЕСЛИ НЕ ПОЛУЧИЛИ ИМЯ В НУЖНОМ ПАДЕЖЕ - ВОЗВРАЩАЕМ КАК ЕСТЬ
+	if rodSuffix.Code != 0 {
+		name = strings.Replace(people, "%20", " ", -1)
+		fmt.Println("ОШИБКА СЕРВИСА ПАДЕЖЕЙ")
+		return name
+	}
+
 	switch padej {
 	case "V":
 		name = rodSuffix.NameV
@@ -178,6 +199,7 @@ func getPrettySuffix(people, padej string) string {
 	return name
 }
 
+//СЛУЧАЙНОЕ ЧИСЛО ДЛЯ ОПРЕДЕЛЕНИЯ ТЕКСТА СООБЩЕНИЯ
 func random(max int) int {
 	rand.Seed(time.Now().UnixNano())
 	return rand.Intn(max)
@@ -239,30 +261,27 @@ func getCongratArrays() ([]TextFirstPart, []TextSecondPart, []TextThirdPart) {
 
 //ГЕНЕРИРУЕМ СООБЩЕНИЕ ПО ГУГЛ ТАБЛИЦЕ С ЗАГОТОВКАМИ
 func getBirthdayMsg(peoples Employee) string {
+	//МАССИВЫ СТРУКТУР ЧАСТЕЙ ПОЗДРАВЛЕНИЯ
 	fTP, sTP, tTP := getCongratArrays()
 
-	//ВЫНЕСТИ В ОТДЕЛЬНУЮ ФУНКЦИЮ СОСТАВЛЕНИЕ ТЕКСТА
 	var text1, text2, text3, text4, text5 string
 
 	//ГЕНЕРИРУЕМ СЛУЧАЙНОЕ ЧИСЛО, И ПО НЕМУ ПОДСТАВЛЯЕМ ЧАСТЬ ТЕКСТА
 	text1 = fTP[random(len(fTP))].Congratulation
 
-	//ПРИ ПЕРВОЙ В КОТОРОЙ УКАЗАН ПОЛ, ПРОВЕРЯЕМ ПОЛ СОТРУДНИКА
+	//ЕСЛИ В ПЕРВОЙ ЧАСТИ УКАЗАН ПОЛ, ПРОВЕРЯЕМ ПОЛ СОТРУДНИКА
 	for strings.HasSuffix(text1, " *Ж") && peoples.Male == "М" {
 		text1 = fTP[random(len(fTP))].Congratulation
 		time.Sleep(77 * time.Microsecond)
-		fmt.Println("Я В ЦИКЛЕ ПИПЛ МАЛЕ Ж - М")
 	}
 	for strings.HasSuffix(text1, " *М") && peoples.Male == "Ж" {
 		text1 = fTP[random(len(fTP))].Congratulation
 		time.Sleep(77 * time.Microsecond)
-		fmt.Println("Я В ЦИКЛЕ ПИПЛ МАЛЕ М - Ж")
 	}
 	//ЕСЛИ ПОЛ ОПРЕДЕЛИТЬ НЕ УДАЛОСЬ - НЕ ИСПОЛЬЗУЕМ НАЧАЛЬНЫЕ ФРАЗЫ В КОТОРЫХ ОН УКАЗАН
 	for peoples.Male == "?" && (strings.HasSuffix(text1, " *М") || strings.HasSuffix(text1, " *Ж")) {
 		text1 = fTP[random(len(fTP))].Congratulation
 		time.Sleep(77 * time.Microsecond)
-		fmt.Println("Я В ЦИКЛЕ ПИПЛ МАЛЕ ?")
 	}
 
 	//УДАЛЯЕМ УКАЗАТЕЛИ ПОЛА В НАЧАЛЬНОЙ ФРАЗЕ
@@ -272,7 +291,7 @@ func getBirthdayMsg(peoples Employee) string {
 	if strings.HasSuffix(text1, " *М") {
 		text1 = strings.Replace(text1, " *М", "", 1)
 	}
-	//ПОЛУЧАЕМ ИМЯ В НУЖНОМ ПАДЕЖЕ В ЗАВИСИМОСТИ ОТ УКАЗАТЕЛЯ ГУГЛ ТАБЛИЦЫ
+	//ПОЛУЧАЕМ ИМЯ В НУЖНОМ ПАДЕЖЕ В ЗАВИСИМОСТИ ОТ УКАЗАТЕЛЯ ПАДЕЖА В ГУГЛ ТАБЛИЦЕ
 	if strings.HasSuffix(text1, " *В") {
 		text1 = strings.Replace(text1, " *В", "", 1)
 		peoples.Name = getPrettySuffix(peoples.Name, "V")
@@ -285,7 +304,12 @@ func getBirthdayMsg(peoples Employee) string {
 		text1 = strings.Replace(text1, " *Р", "", 1)
 		peoples.Name = getPrettySuffix(peoples.Name, "R")
 	}
+
+	//ПОЛУЧАЕМ ОТДЕЛ В НУЖНОМ ПАДЕЖЕ
+	peoples.Department = getPrettySuffix(peoples.Department, "R")
+
 	text2 = sTP[random(len(sTP))].WishYou
+	//ПОЖЕЛАНИЯ ГЕНЕРИРУЕМ ТАК, ЧТОБЫ ОНИ НЕ ПОВТОРЯЛИСЬ
 	text3 = tTP[random(len(tTP))].Sentiments
 	for text4 == "" || text4 == text3 {
 		text4 = tTP[random(len(tTP))].Sentiments
@@ -293,6 +317,6 @@ func getBirthdayMsg(peoples Employee) string {
 	for text5 == "" || text5 == text4 || text5 == text3 {
 		text5 = tTP[random(len(tTP))].Sentiments
 	}
-	msg := fmt.Sprintf("%v %v из отдела %v. %v %v, %v и %v!", text1, peoples.Name, peoples.Department, text2, text3, text4, text5)
+	msg := fmt.Sprintf("%v %v из %v. %v %v, %v и %v!", text1, peoples.Name, peoples.Department, text2, text3, text4, text5)
 	return msg
 }
