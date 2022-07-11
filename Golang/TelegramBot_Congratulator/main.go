@@ -49,7 +49,7 @@ type Employee struct {
 func main() {
 
 	//botToken := getBotToken()
-	bot, err := tgbotapi.NewBotAPI("5336741653:AAEFq8-y8i9O3f2mg0IqKXWWkQZ7i2Ivb64")
+	bot, err := tgbotapi.NewBotAPI("5336741653:AAEFq8-y8i9O3f2mg0IqKXWWkQZ7i2Ivb64") //БОТ ПОЗДРАВЛЯТОР ЛИИСОВИЧ
 	if err != nil {
 		log.Panic(err)
 	}
@@ -60,7 +60,7 @@ func main() {
 	for {
 		//ПОЗДРАВЛЕНИЕ ТОЛЬКО В ПЕРИОД 10-11
 		currentTime := time.Now()
-		if currentTime.Hour() == 13 {
+		if currentTime.Hour() == 14 {
 
 			birthdayToday := getBirthdayJson()
 
@@ -68,7 +68,8 @@ func main() {
 				for _, peoples := range birthdayToday {
 					fmt.Println(peoples)
 					msg := getBirthdayMsg(peoples)
-					bot.Send(tgbotapi.NewMessage(-728590508, msg))
+					bot.Send(tgbotapi.NewMessage(-728590508, msg)) //ОТПРАВИТЬ В ТЕСТОВЫЙ ЧАТ
+					//bot.Send(tgbotapi.NewMessage(678187421, msg)) //ОТПРАВИТЬ В ЛИЧНЫЙ ЧАТ
 					time.Sleep(10 * time.Minute)
 				}
 			}
@@ -101,21 +102,39 @@ func getBirthdayJson() []Employee {
 
 	var strMonth, strDay, strDate string
 
-	//УЖАСНАЯ КОНВЕРТАЦИЯ МЕСЯЦА
-	if int(currentTime.Month()) < 10 {
-		strMonth = fmt.Sprintf("0%v", int(currentTime.Month()))
-	} else {
-		strMonth = strconv.Itoa(int(currentTime.Month()))
+	//КОНВЕРТАЦИЯ МЕСЯЦА
+	switch int(currentTime.Month()) {
+	case 1:
+		strMonth = "янв."
+	case 2:
+		strMonth = "февр"
+	case 3:
+		strMonth = "мар."
+	case 4:
+		strMonth = "апр."
+	case 5:
+		strMonth = "мая"
+	case 6:
+		strMonth = "июн."
+	case 7:
+		strMonth = "июл."
+	case 8:
+		strMonth = "авг."
+	case 9:
+		strMonth = "сент."
+	case 10:
+		strMonth = "окт."
+	case 11:
+		strMonth = "нояб."
+	case 12:
+		strMonth = "дек."
+
 	}
 
-	//УЖАСНАЯ КОНВЕРТАЦИЯ ДНЯ
-	if int(currentTime.Day()) < 10 {
-		strDay = fmt.Sprintf("0%v", currentTime.Day())
-	} else {
-		strDay = strconv.Itoa(currentTime.Day())
-	}
+	//КОНВЕРТАЦИЯ ДНЯ
+	strDay = strconv.Itoa(currentTime.Day())
 
-	strDate = strDay + "." + strMonth //ПРИВОДИМ ДАТУ К ВИДУ ГУГЛДОК
+	strDate = strDay + " " + strMonth //ПРИВОДИМ ДАТУ К ВИДУ ГУГЛДОК
 
 	//В ЦИКЛЕ ПО ВСЕМ ЛЮДЯМ ИЩЕМ ТЕХ У КОГО ДЕНЬ РОЖДЕНИЯ И ДОБАВЛЯЕМ ИХ В НОВУЮ СТРУКТУРУ
 	for _, empl := range employes {
