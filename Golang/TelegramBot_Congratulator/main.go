@@ -60,23 +60,23 @@ func main() {
 	for {
 		//ПОЗДРАВЛЕНИЕ ТОЛЬКО В ПЕРИОД 10-11
 		currentTime := time.Now()
-		if currentTime.Hour() == 14 {
+
+		if currentTime.Hour() == 9 {
 
 			birthdayToday := getBirthdayJson()
 
 			if len(birthdayToday) > 0 {
+
 				for _, peoples := range birthdayToday {
 					fmt.Println(peoples)
 					msg := getBirthdayMsg(peoples)
-					bot.Send(tgbotapi.NewMessage(-728590508, msg)) //ОТПРАВИТЬ В ТЕСТОВЫЙ ЧАТ
-					//bot.Send(tgbotapi.NewMessage(678187421, msg)) //ОТПРАВИТЬ В ЛИЧНЫЙ ЧАТ
-					time.Sleep(10 * time.Minute)
+
+					bot.Send(tgbotapi.NewMessage(678187421, msg)) //ОТПРАВИТЬ В ЛИЧНЫЙ ЧАТ
+					time.Sleep(5 * time.Minute)                   //minute
 				}
 			}
-		} else {
-			time.Sleep(1 * time.Hour)
 		}
-		time.Sleep(1 * time.Hour)
+		time.Sleep(1 * time.Hour) //hour
 	}
 }
 
@@ -87,14 +87,9 @@ func getBirthdayJson() []Employee {
 
 	employes := []Employee{}
 
-	body, err := ioutil.ReadAll(resp.Body) //ПОЛУЧИЛИ JSON
+	err := json.NewDecoder(resp.Body).Decode(&employes)
 	if err != nil {
-		fmt.Println(err)
-		return nil
-	}
-	if err := json.Unmarshal(body, &employes); err != nil {
-		fmt.Println(err)
-		return nil
+		fmt.Println(err, " body, err")
 	}
 
 	employesBirthday := []Employee{} //СТРУКТУРА ЛЮДЕЙ С ДНЁМ РОЖДЕНИЯ
@@ -336,6 +331,6 @@ func getBirthdayMsg(peoples Employee) string {
 	for text5 == "" || text5 == text4 || text5 == text3 {
 		text5 = tTP[random(len(tTP))].Sentiments
 	}
-	msg := fmt.Sprintf("%v %v из %v. %v %v, %v и %v!", text1, peoples.Name, peoples.Department, text2, text3, text4, text5)
+	msg := fmt.Sprintf("%v %v из %v! %v %v, %v и %v!", text1, peoples.Name, peoples.Department, text2, text3, text4, text5)
 	return msg
 }
