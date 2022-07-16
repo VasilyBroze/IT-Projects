@@ -70,8 +70,8 @@ func main() {
 				for _, peoples := range birthdayToday {
 					fmt.Println(peoples)
 					msg := getBirthdayMsg(peoples)
-
-					bot.Send(tgbotapi.NewMessage(678187421, msg)) //ОТПРАВИТЬ В ЛИЧНЫЙ ЧАТ
+					bot.Send(tgbotapi.NewMessage(-728590508, msg)) //ОТПРАВИТЬ В ТЕСТОВЫЙ ЧАТ
+					//bot.Send(tgbotapi.NewMessage(678187421, msg)) //ОТПРАВИТЬ В ЛИЧНЫЙ ЧАТ
 					time.Sleep(5 * time.Minute)                   //minute
 				}
 			}
