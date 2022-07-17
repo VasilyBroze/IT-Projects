@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package api;
+
+option go_package = "./gRPC_Books_Test";
+
+service BooksAndAuthors {
+  rpc GetAuthor(AuthorRequest) returns (AuthorResponse) {}
+}
+
+message AuthorRequest {
+   string a = 1;
+}
+
+message AuthorResponse {
+  string a = 1;
+}
