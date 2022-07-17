@@ -2,7 +2,7 @@
 Указать настройки авторизации к серверу БД в файле pkg/finder/grpcserver.go (25 строка) и grpcserver_test.go (11 строка) (Стандартные настройки root:root@tcp(127.0.0.1:3306)/books)
 Запустить файл ./gRPC_Books_Test.exe
 
-Для использования клиента:
+Для использования gRPC клиента (Windows):
 В терминале выполнить: 
 	evans api/proto/finder.proto -p 8080
 	call GetAuthor
