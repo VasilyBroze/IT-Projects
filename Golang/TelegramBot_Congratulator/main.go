@@ -8,6 +8,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -46,10 +47,36 @@ type Employee struct {
 	Male string
 }
 
+//ИМЯ В НУЖНОМ ПАДЕЖЕ
+type BotSettings struct {
+	Google_sheet_bday_url  string `json:"google_bday_url"`
+	Google_sheet_bday_list string `json:"google_bday_list"`
+	Google_sheet_text_url  string `json:"google_text_url"`
+	Google_sheet_text_list string `json:"google_text_list"`
+	Bot_token              string `json:"bot_token"`
+	Chat_id                int64  `json:"chat_id"`
+}
+
 func main() {
 
+	var s BotSettings
+
+	bs, err := getSettings("settings.json")
+	if err != nil {
+		fmt.Println("open file error: " + err.Error())
+		return
+	}
+	fmt.Println(string(bs))
+
+	if err := json.Unmarshal(bs, &s); err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	fmt.Println("НИЖЕ БОТ ТОКЕН")
+	fmt.Println(s.Bot_token)
 	//botToken := getBotToken()
-	bot, err := tgbotapi.NewBotAPI("5336741653:AAEFq8-y8i9O3f2mg0IqKXWWkQZ7i2Ivb64") //БОТ ПОЗДРАВЛЯТОР ЛИИСОВИЧ
+	bot, err := tgbotapi.NewBotAPI(s.Bot_token) //БОТ ПОЗДРАВЛЯТОР ЛИИСОВИЧ
 	if err != nil {
 		log.Panic(err)
 	}
@@ -63,16 +90,16 @@ func main() {
 
 		if currentTime.Hour() == 9 {
 
-			birthdayToday := getBirthdayJson()
+			birthdayToday := getBirthdayJson(s.Google_sheet_bday_list, s.Google_sheet_bday_url)
 
 			if len(birthdayToday) > 0 {
 
 				for _, peoples := range birthdayToday {
 					fmt.Println(peoples)
-					msg := getBirthdayMsg(peoples)
-					bot.Send(tgbotapi.NewMessage(-728590508, msg)) //ОТПРАВИТЬ В ТЕСТОВЫЙ ЧАТ
-					//bot.Send(tgbotapi.NewMessage(678187421, msg)) //ОТПРАВИТЬ В ЛИЧНЫЙ ЧАТ
-					time.Sleep(5 * time.Minute)                   //minute
+					msg := getBirthdayMsg(peoples, s.Google_sheet_text_list, s.Google_sheet_text_url)
+					bot.Send(tgbotapi.NewMessage(s.Chat_id, msg)) //ОТПРАВИТЬ В ТЕСТОВЫЙ ЧАТ
+					//(678187421 личный чат)(-728590508 тест группа)
+					time.Sleep(5 * time.Minute) //minute
 				}
 			}
 		}
@@ -81,12 +108,12 @@ func main() {
 }
 
 //ПАРСИМ ЛЮДЕЙ У КОТОРЫХ СЕГОДНЯ ДЕНЬ РОЖДЕНИЯ, ОПРЕДЕЛЯЕМ ПОЛ
-func getBirthdayJson() []Employee {
-	resp, _ := http.Get(fmt.Sprintf("https://tools.aimylogic.com/api/googlesheet2json?sheet=Users&id=1mV5gdMfZ385RugZQAYLJQfljFFg17kWsb0DmZmG98dI"))
+func getBirthdayJson(list, url string) []Employee {
+	resp, _ := http.Get(fmt.Sprintf("https://tools.aimylogic.com/api/googlesheet2json?sheet=%v&id=%v", list, url))
 	defer resp.Body.Close()
 
 	employes := []Employee{}
-
+	fmt.Println(resp.Body)
 	err := json.NewDecoder(resp.Body).Decode(&employes)
 	if err != nil {
 		fmt.Println(err, " body, err")
@@ -220,8 +247,8 @@ func random(max int) int {
 }
 
 //ПАРСИМ ТАБЛИЦУ С ТЕКСТОМ ПОЗДРАВЛЕНИЙ И РАСПРЕДЕЛЯЕМ ИХ ПО МАССИВАМ
-func getCongratArrays() ([]TextFirstPart, []TextSecondPart, []TextThirdPart) {
-	resp, _ := http.Get(fmt.Sprintf("https://tools.aimylogic.com/api/googlesheet2json?sheet=Text&id=1mV5gdMfZ385RugZQAYLJQfljFFg17kWsb0DmZmG98dI"))
+func getCongratArrays(list, url string) ([]TextFirstPart, []TextSecondPart, []TextThirdPart) {
+	resp, _ := http.Get(fmt.Sprintf("https://tools.aimylogic.com/api/googlesheet2json?sheet=%v&id=%v", list, url))
 	defer resp.Body.Close()
 
 	//МАССИВЫ ДЛЯ ПАРСИНГА
@@ -274,9 +301,9 @@ func getCongratArrays() ([]TextFirstPart, []TextSecondPart, []TextThirdPart) {
 }
 
 //ГЕНЕРИРУЕМ СООБЩЕНИЕ ПО ГУГЛ ТАБЛИЦЕ С ЗАГОТОВКАМИ
-func getBirthdayMsg(peoples Employee) string {
+func getBirthdayMsg(peoples Employee, list, url string) string {
 	//МАССИВЫ СТРУКТУР ЧАСТЕЙ ПОЗДРАВЛЕНИЯ
-	fTP, sTP, tTP := getCongratArrays()
+	fTP, sTP, tTP := getCongratArrays(list, url)
 
 	var text1, text2, text3, text4, text5 string
 
@@ -333,4 +360,12 @@ func getBirthdayMsg(peoples Employee) string {
 	}
 	msg := fmt.Sprintf("%v %v из %v! %v %v, %v и %v!", text1, peoples.Name, peoples.Department, text2, text3, text4, text5)
 	return msg
+}
+
+func getSettings(path string) ([]byte, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	return ioutil.ReadAll(f)
 }
