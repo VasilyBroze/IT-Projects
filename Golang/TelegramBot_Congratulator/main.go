@@ -43,8 +43,8 @@ type Employee struct {
 	Date string `json:"Дата рождения"`
 	//	Title       string `json:"Должность"`
 	Department string `json:"Отдел"`
-	//	PhoneNumber string `json:"Телефон"`
-	Male string
+	Company    string `json:"Компания"`
+	Male       string
 }
 
 //ИМЯ В НУЖНОМ ПАДЕЖЕ
@@ -73,7 +73,6 @@ func main() {
 		return
 	}
 
-	fmt.Println("НИЖЕ БОТ ТОКЕН")
 	fmt.Println(s.Bot_token)
 	//botToken := getBotToken()
 	bot, err := tgbotapi.NewBotAPI(s.Bot_token) //БОТ ПОЗДРАВЛЯТОР ЛИИСОВИЧ
@@ -160,7 +159,7 @@ func getBirthdayJson(list, url string) []Employee {
 
 	//В ЦИКЛЕ ПО ВСЕМ ЛЮДЯМ ИЩЕМ ТЕХ У КОГО ДЕНЬ РОЖДЕНИЯ И ДОБАВЛЯЕМ ИХ В НОВУЮ СТРУКТУРУ
 	for _, empl := range employes {
-		if strings.HasPrefix(empl.Date, strDate) {
+		if strings.HasPrefix(empl.Date, strDate) && strings.HasPrefix(empl.Company, "Е") == false {
 			shortName := strings.Split(empl.Name, " ")
 			//ЕСЛИ ФИО ИЗ 3 СЛОВ - ОПРЕДЕЛЯЕМ ПОЛ ПО ОТЧЕСТВУ, УБИРАЕМ ОТЧЕСТВО
 			if len(shortName) == 3 {
