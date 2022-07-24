@@ -16,6 +16,7 @@ func main() {
 	srv := &finder.GRPCServer{}
 	gRPC_Books_Test.RegisterBooksAndAuthorsServer(s, srv)
 
+	//Создаём слушатель
 	l, err := net.Listen("tcp", ":8080")
 	if err != nil {
 		log.Fatal(err)
